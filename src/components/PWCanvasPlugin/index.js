@@ -1,5 +1,4 @@
 import PWCanvas from './PWCanvas.vue';
-import PWNode from './PWNode.vue';
 
 const PWCanvasStore = {
 	showPWCanvas: false,
@@ -19,7 +18,6 @@ const PWCanvasPlugin = {
 
 		Vue.prototype.$pwcanvas = app.pwcanvasStore;
 		Vue.component('pw-canvas', PWCanvas);
-		Vue.component('pw-node', PWNode);
 	}
 };
 

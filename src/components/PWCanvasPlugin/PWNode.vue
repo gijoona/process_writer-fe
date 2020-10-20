@@ -1,5 +1,5 @@
 <template>
-  <g @click="onClick" @auxclick="onRightClick" @contextmenu.prevent>
+  <g @click="onClick" @contextmenu.stop.prevent="onRightClick">
     <defs>
       <marker
         :id="'nodeMarker' + dept"
@@ -94,8 +94,8 @@ export default {
     onClick() {
       this.$emit("onClick", this.node);
     },
-    onRightClick() {
-      console.log("not left click.");
+    onRightClick(e) {
+      this.$emit("onContextmenu", { node: this.node, event: e });
     },
   },
 };
