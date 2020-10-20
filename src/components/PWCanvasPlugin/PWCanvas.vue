@@ -38,32 +38,45 @@ export default {
         show: false,
         x: 0,
         y: 0
-      }
+      },
+      nodeDeeps: 0,
+      searchDeeps: 0
     };
   },
   methods: {
     async initCanvas(data) {
+      this.nodes = [];
       await this.generateNodes(data);
       this.drawPath();
     },
     generateNodes(data) {
       data.forEach((node, idx) => {
+        this.nodeDeeps++;
         this.nodes.push(node);
         if (node.pw_nodes) this.generateNodes(node.pw_nodes);
       });
     },
-    replaceNode(oNode, rNode, nodes){
-      console.log('into replaceNode');
+    searchNodeDeeps(oNode, nodes){
       nodes.forEach((node, idx) => {
+        this.searchDeeps++;
         if (node === oNode) {
-          console.log('match');
-          node = rNode;
           return false;
         } else if (node.pw_nodes) {
-          console.log('next pw_nodes');
-          this.replaceNode(oNode, rNode, node.pw_nodes);
+          this.searchNodeDeeps(oNode, node.pw_nodes);
         }
       });
+    },
+    replaceNode(oNode, rNode, nodes){
+      let currNode = nodes;
+      while(0 < currNode.length) {
+        if (currNode[0] === oNode) {
+          if (rNode) { currNode[0] = rNode; }
+          else { delete currNode[0]; }
+          break;
+        }
+        currNode = currNode[0].pw_nodes || [];
+      }
+      this.initCanvas(nodes);
     },
     drawPath() {
       // TODO :: firefox에서 PATH가 안그려지는 증상 발생
@@ -103,15 +116,26 @@ export default {
       if (cmd === "delete") this.nodeDelete();
     },
     nodePlus() {
-      let newNode = { subject: '', contents: '', pw_nodes: [this.node] };
-      this.replaceNode(this.node, newNode, this.pwNodes);
+      let plusNode = this.node;
+      let childNodes = [{ subject: '', contents: '', pw_nodes: this.node.pw_nodes }];
+      plusNode.pw_nodes = childNodes;
+
+      this.replaceNode(this.node, plusNode, this.pwNodes);
     },
     nodeBranch() {
-      console.log("add branch");
+      let branchNode = this.node;
+      let appendNode = { subject: '', contents: '' };
+      branchNode.pw_nodes.push(appendNode);
+
+      this.replaceNode(this.node, branchNode, this.pwNodes);
     },
     nodeDelete() {
-      if(confirm("하위노드까지 전부 삭제하시겠습니까?")) console.log("all delete");
-      else console.log("single delete");
+      if(confirm("하위노드까지 전부 삭제하시겠습니까?")) {
+        this.replaceNode(this.node, undefined, this.pwNodes);
+      }
+      else {
+        this.replaceNode(this.node, this.node.pw_nodes[0], this.pwNodes);
+      }
     }
   },
   mounted() {
