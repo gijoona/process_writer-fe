@@ -8,7 +8,8 @@
       <PWNode
         v-for="(node, idx) in nodes"
         :node="node"
-        :dept="idx"
+        :deep="node.deep"
+        :branch="node.branch"
         :key="idx"
         @onClick="showContents"
         @onContextmenu="nodeContextmenu"
@@ -19,6 +20,7 @@
 </template>
 <script>
 import PWNode from "./PWNode.vue";
+import PWCard from "./PWCard.vue";
 import PWContextmenu from './PWContextmenu.vue'
 
 export default {
@@ -66,17 +68,48 @@ export default {
         }
       });
     },
-    replaceNode(oNode, rNode, nodes){
-      let currNode = nodes;
-      while(0 < currNode.length) {
-        if (currNode[0] === oNode) {
-          if (rNode) { currNode[0] = rNode; }
-          else { delete currNode[0]; }
-          break;
+    // TODO :: Node 삭제처리를 위한 기능 개선 필요.
+    changeNode(oNode, rNode, nodes) {
+      nodes.forEach((node, idx) => {
+        if (node === oNode) {
+          if (rNode) { 
+            node = rNode; 
+          } else { 
+            node = null; 
+          }
+          return false;
         }
-        currNode = currNode[0].pw_nodes || [];
-      }
+        this.changeNode(oNode, rNode, (node.pw_nodes || []));
+      });
+    },
+    replaceNode(oNode, rNode, nodes) {
+      this.changeNode(oNode, rNode, nodes);
       this.initCanvas(nodes);
+    },
+    // 기존 추가, 분기, 삭제처리 로직. 단일 패스에 대한 처리만 가능하므로 changeNode로 기능 이전 및 개선 진행. 이후 삭제
+    // replaceNode(oNode, rNode, nodes){
+    //   let currNode = nodes;
+    //   while(0 < currNode.length) {
+    //     if (currNode[0] === oNode) {
+    //       if (rNode) { currNode[0] = rNode; }
+    //       else { delete currNode[0]; }
+    //       break;
+    //     }
+    //     currNode = currNode[i].pw_nodes || [];
+    //   }
+    //   this.initCanvas(nodes);
+    // },
+    updateNodeDeep(nodes, num) {
+      nodes.forEach((node, idx) => {
+        node.deep = node.deep + num;
+        if (node.pw_nodes) this.updateNodeDeep(node.pw_nodes, num);
+      });
+    },
+    updateNodeBranch(nodes, num) {
+      nodes.forEach((node, idx) => {
+        node.branch = node.branch + num;
+        if (node.pw_nodes) this.updateNodeBranch(node.pw_nodes, num);
+      });
     },
     drawPath() {
       // TODO :: firefox에서 PATH가 안그려지는 증상 발생
@@ -117,24 +150,29 @@ export default {
     },
     nodePlus() {
       let plusNode = this.node;
-      let childNodes = [{ subject: '', contents: '', pw_nodes: this.node.pw_nodes }];
-      plusNode.pw_nodes = childNodes;
+      if (this.node.pw_nodes) this.updateNodeDeep(this.node.pw_nodes, 1);
 
+      let childNodes = [Object.assign({}, plusNode, { subject: '', contents: '', deep: (plusNode.deep + 1)})];
+      plusNode.pw_nodes = childNodes;
       this.replaceNode(this.node, plusNode, this.pwNodes);
     },
     nodeBranch() {
       let branchNode = this.node;
-      let appendNode = { subject: '', contents: '' };
+      if (this.node.pw_nodes) this.updateNodeBranch(this.node.pw_nodes, 1);
+
+      let appendNode = { subject: '', contents: '', deep: (branchNode.deep + 1), branch: branchNode.branch };
       branchNode.pw_nodes.push(appendNode);
 
       this.replaceNode(this.node, branchNode, this.pwNodes);
     },
     nodeDelete() {
       if(confirm("하위노드까지 전부 삭제하시겠습니까?")) {
-        this.replaceNode(this.node, undefined, this.pwNodes);
+        this.replaceNode(this.node, null, this.pwNodes);
       }
       else {
-        this.replaceNode(this.node, this.node.pw_nodes[0], this.pwNodes);
+        let childNode = this.node.pw_nodes;
+        if (childNode) this.updateNodeDeep(childNode, -1);
+        this.replaceNode(this.node, childNode, this.pwNodes);
       }
     }
   },
@@ -143,6 +181,7 @@ export default {
   },
   components: {
     PWNode: PWNode,
+    PWCard: PWCard,
     PWContextmenu: PWContextmenu
   },
 };

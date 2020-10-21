@@ -2,7 +2,7 @@
   <g @click="onClick" @contextmenu.stop.prevent="onRightClick">
     <defs>
       <marker
-        :id="'nodeMarker' + dept"
+        :id="'nodeMarker' + deep"
         name="nodeMarker"
         markerWidth="8"
         markerHeight="8"
@@ -42,7 +42,11 @@ export default {
       type: Object,
       default: () => {},
     },
-    dept: {
+    deep: {
+      type: Number,
+      default: () => 0,
+    },
+    branch: {
       type: Number,
       default: () => 0,
     },
@@ -69,13 +73,13 @@ export default {
   computed: {
     rect_x() {
       return this.horizontal
-        ? this.gap + (this.x + this.gap) * this.dept
-        : this.x;
+        ? this.gap + (this.x + this.gap) * this.deep
+        : this.gap + (this.x + this.gap) * this.branch;
     },
     rect_y() {
       return this.horizontal
-        ? this.y
-        : this.gap + (this.y + this.gap) * this.dept;
+        ? this.gap + (this.y + this.gap) * this.branch
+        : this.gap + (this.y + this.gap) * this.deep;
     },
     round_x() {
       return this.rx;
