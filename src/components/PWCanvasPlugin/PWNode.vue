@@ -23,8 +23,17 @@
       style="fill:white; stroke:black; stroke-width:2;"
     ></rect>
     <text
+      fill="gray"
+      :font-size="subFontSize"
+      :x="sub_cx"
+      :y="sub_cy"
+      dominant-baseline="middle"
+    >
+      {{ sub_text }}
+    </text>
+    <text
       fill="black"
-      :font-size="fontSize"
+      :font-size="titleFontSize"
       :x="cx"
       :y="cy"
       dominant-baseline="middle"
@@ -67,7 +76,8 @@ export default {
       ry: 10,
       ractWidth: 100,
       ractHeight: 70,
-      fontSize: 28,
+      titleFontSize: 28,
+      subFontSize: 12
     };
   },
   computed: {
@@ -93,6 +103,15 @@ export default {
     cy() {
       return this.rect_y + this.ractHeight / 2;
     },
+    sub_cx() {
+      return this.cx - 45;
+    },
+    sub_cy() {
+      return this.cy - 23;
+    },
+    sub_text() {
+      return this.node.branch + "-" + this.node.deep
+    }
   },
   methods: {
     onClick() {

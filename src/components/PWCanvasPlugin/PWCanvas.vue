@@ -1,6 +1,6 @@
 <template>
   <v-container @contextmenu.prevent="showContextmenu">
-    <svg id="canvas" width="100%" height="100%">
+    <svg id="canvas" :viewBox="svgViewBox" xmlns="http://www.w3.org/2000/svg" overflow="auto">
       <path
         :d="pathDirection"
         style="stroke: #6666ff; stroke-width: 1px; fill: none;"
@@ -16,6 +16,12 @@
       ></PWNode>
     </svg>
     <PWContextmenu :opts="contextmenuOpts" @click="callNodeProcess"/>
+    <v-dialog
+      v-model="dialog"
+      max-width="50%"
+    >
+      <PWCard :node-info.sync="node"></PWCard>
+    </v-dialog>
   </v-container>
 </template>
 <script>
@@ -34,6 +40,7 @@ export default {
   data() {
     return {
       node: {},
+      parentNode: {},
       nodes: [],
       pathDirection: "M0,0 L0,0",
       contextmenuOpts: {
@@ -41,19 +48,30 @@ export default {
         x: 0,
         y: 0
       },
-      nodeDeeps: 0,
-      searchDeeps: 0
+      maxDeep: 0,
+      maxBranch: 0,
+      searchDeeps: 0,
+      dialog: false
     };
+  },
+  computed: {
+    svgViewBox() {
+      // return "0 0 " + (140 * (this.maxBranch + 1)) + " " + (120 * (this.maxDeep + 1));
+      return "0 0 1000 1000";
+    }
   },
   methods: {
     async initCanvas(data) {
+      this.maxDeep = 0;
       this.nodes = [];
       await this.generateNodes(data);
       this.drawPath();
     },
     generateNodes(data) {
       data.forEach((node, idx) => {
-        this.nodeDeeps++;
+        if (node.deep > this.maxDeep) this.maxDeep = node.deep;
+        if (node.branch > this.maxBranch) this.maxBranch = node.branch;
+
         this.nodes.push(node);
         if (node.pw_nodes) this.generateNodes(node.pw_nodes);
       });
@@ -68,14 +86,22 @@ export default {
         }
       });
     },
+    findParentNode(cNode, nodes) {
+      nodes.forEach((node, idx) => {
+        if (node === cNode) {
+          return false;
+        } else if (node.pw_nodes) {
+          this.parentNode = node;
+          this.findParentNode(cNode, node.pw_nodes);
+        }
+      });
+    },
     // TODO :: Node 삭제처리를 위한 기능 개선 필요.
     changeNode(oNode, rNode, nodes) {
       nodes.forEach((node, idx) => {
         if (node === oNode) {
           if (rNode) { 
-            node = rNode; 
-          } else { 
-            node = null; 
+            node = rNode;
           }
           return false;
         }
@@ -129,9 +155,12 @@ export default {
       }
     },
     showContents(data) {
-      console.log("showContents", data);
+      this.findParentNode(data, this.pwNodes);
+      this.dialog = true;
+      this.node = data;
     },
     nodeContextmenu(data) {
+      this.findParentNode(data.node, this.pwNodes);
       this.showContextmenu(data.event);
       this.node = data.node;
     },
@@ -166,18 +195,57 @@ export default {
       this.replaceNode(this.node, branchNode, this.pwNodes);
     },
     nodeDelete() {
-      if(confirm("하위노드까지 전부 삭제하시겠습니까?")) {
-        this.replaceNode(this.node, null, this.pwNodes);
+      let deleteNodeIdx = this.parentNode.pw_nodes.findIndex((cNode) => this.node === cNode);
+      // STEP1. 하위노드가 있는 경우
+      // STEP1-1. 하위노드까지 삭제하는 경우
+      // STEP1-2. 하위노드는 유지하는 경우
+      // STEP1-2-1. 하위노드가 단일 Branch일 경우
+      // STEP1-2-2. 하위노드의 다중 Branch일 경우
+      // STEP2. 하위노드가 없는 경우
+
+      if (this.parentNode.pw_nodes[deleteNodeIdx].pw_nodes) {
+        // STEP1
+        if(confirm("하위노드까지 전부 삭제하시겠습니까?")) {
+          // STEP1-1
+          delete this.parentNode.pw_nodes[deleteNodeIdx];
+        } else {
+          // STEP1-2
+          let childNodes = this.parentNode.pw_nodes[deleteNodeIdx].pw_nodes;
+          this.updateNodeDeep(childNodes, -1);
+          if (childNodes.length === 1) {
+            // STEP1-2-1
+            this.parentNode.pw_nodes.push(childNodes[0]);
+          } else if(childNodes.length >= 1) {
+            // STEP1-2-2
+            let tmpNodes = [];
+            let plusNum = 0;
+            this.parentNode.pw_nodes.forEach((node, idx) => {
+              node.branch = node.branch + plusNum;
+              if (idx === deleteNodeIdx) {
+                childNodes.forEach((cNode, idx) => {
+                  console.log('del node child', node.branch, cNode.branch);
+                  cNode.branch = node.branch + plusNum;
+                  tmpNodes.unshift(cNode);
+                  plusNum++;
+                });
+              } else {
+                console.log('del node same', node.branch);
+                tmpNodes.unshift(node);
+              }
+            });
+
+            this.parentNode.pw_nodes = tmpNodes;
+          }
+        }
+      } else {
+        // STEP2
+        delete this.parentNode.pw_nodes[deleteNodeIdx];
       }
-      else {
-        let childNode = this.node.pw_nodes;
-        if (childNode) this.updateNodeDeep(childNode, -1);
-        this.replaceNode(this.node, childNode, this.pwNodes);
-      }
+      this.replaceNode(this.node, null, this.pwNodes);
     }
   },
   mounted() {
-    this.$watch("pwNodes", this.initCanvas, { immediate: true });
+    this.$watch("pwNodes", this.initCanvas, { immediate: true, deep: true });
   },
   components: {
     PWNode: PWNode,
