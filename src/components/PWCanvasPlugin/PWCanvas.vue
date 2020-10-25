@@ -56,8 +56,9 @@ export default {
   },
   computed: {
     svgViewBox() {
-      // return "0 0 " + (140 * (this.maxBranch + 1)) + " " + (120 * (this.maxDeep + 1));
-      return "0 0 1000 1000";
+      let width = 140 * (this.maxBranch + 1) > 500 ? 140 * (this.maxBranch + 1) : 500;
+      let height = 120 * (this.maxDeep + 1) > 400 ? 120 * (this.maxDeep + 1) : 400;
+      return "0 0 " + width + " " + height;
     }
   },
   methods: {
