@@ -2,7 +2,7 @@
   <g @click="onClick" @contextmenu.stop.prevent="onRightClick">
     <defs>
       <marker
-        :id="'nodeMarker' + deep"
+        :id="'nodeMarker_' + branch + '_' + deep"
         name="nodeMarker"
         markerWidth="8"
         markerHeight="8"

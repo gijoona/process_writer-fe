@@ -1,7 +1,7 @@
 <template>
   <v-container @contextmenu.prevent="showContextmenu">
     <svg id="canvas" :viewBox="svgViewBox" xmlns="http://www.w3.org/2000/svg" overflow="auto">
-      <path
+      <path v-for="pathDirection in pathDirections" :key="pathDirection" name="paths"
         :d="pathDirection"
         style="stroke: #6666ff; stroke-width: 1px; fill: none;"
       />
@@ -42,7 +42,7 @@ export default {
       node: {},
       parentNode: {},
       nodes: [],
-      pathDirection: "M0,0 L0,0",
+      pathDirections: [],
       contextmenuOpts: {
         show: false,
         x: 0,
@@ -88,14 +88,7 @@ export default {
       });
     },
     findParentNode(cNode, nodes) {
-      nodes.forEach((node, idx) => {
-        if (node === cNode) {
-          return false;
-        } else if (node.pw_nodes) {
-          this.parentNode = node;
-          this.findParentNode(cNode, node.pw_nodes);
-        }
-      });
+      this.parentNode = cNode.parent_node;
     },
     // TODO :: Node 삭제처리를 위한 기능 개선 필요.
     changeNode(oNode, rNode, nodes) {
@@ -113,19 +106,6 @@ export default {
       this.changeNode(oNode, rNode, nodes);
       this.initCanvas(nodes);
     },
-    // 기존 추가, 분기, 삭제처리 로직. 단일 패스에 대한 처리만 가능하므로 changeNode로 기능 이전 및 개선 진행. 이후 삭제
-    // replaceNode(oNode, rNode, nodes){
-    //   let currNode = nodes;
-    //   while(0 < currNode.length) {
-    //     if (currNode[0] === oNode) {
-    //       if (rNode) { currNode[0] = rNode; }
-    //       else { delete currNode[0]; }
-    //       break;
-    //     }
-    //     currNode = currNode[i].pw_nodes || [];
-    //   }
-    //   this.initCanvas(nodes);
-    // },
     updateNodeDeep(nodes, num) {
       nodes.forEach((node, idx) => {
         node.deep = node.deep + num;
@@ -140,28 +120,25 @@ export default {
     },
     drawPath() {
       // TODO :: firefox에서 PATH가 안그려지는 증상 발생
-      let markers = document.getElementsByName("nodeMarker");
-      if (markers) {
-        let idx = 0;
-        markers.forEach((marker) => {
-          let prefix = idx === 0 ? "M" : "L";
-          this.pathDirection +=
-            prefix +
-            marker.getAttribute("refX") +
-            "," +
-            marker.getAttribute("refY") +
-            " ";
-          idx++;
-        });
-      }
+      document.getElementsByName('paths').forEach((node, idx) => {
+        node.remove();
+      });
+
+      this.nodes.forEach((node, idx) => {
+        if (node.parent_node) {
+          let pm = document.getElementById('nodeMarker_' + node.parent_node.branch + '_' + node.parent_node.deep);
+          let cm = document.getElementById('nodeMarker_' + node.branch + '_' + node.deep);
+          this.pathDirections.push('M' + pm.getAttribute('refX') + ',' + pm.getAttribute('refY') + ' ' + 'L' + cm.getAttribute('refX') + ',' + cm.getAttribute('refY'));
+        }
+      });
     },
     showContents(data) {
-      this.findParentNode(data, this.pwNodes);
+      this.findParentNode(data);
       this.dialog = true;
       this.node = data;
     },
     nodeContextmenu(data) {
-      this.findParentNode(data.node, this.pwNodes);
+      this.findParentNode(data.node);
       this.showContextmenu(data.event);
       this.node = data.node;
     },
@@ -182,7 +159,7 @@ export default {
       let plusNode = this.node;
       if (this.node.pw_nodes) this.updateNodeDeep(this.node.pw_nodes, 1);
 
-      let childNodes = [Object.assign({}, plusNode, { subject: '', contents: '', deep: (plusNode.deep + 1)})];
+      let childNodes = [Object.assign({}, plusNode, { parent_node: this.node, subject: '', contents: '', deep: (plusNode.deep + 1)})];
       plusNode.pw_nodes = childNodes;
       this.replaceNode(this.node, plusNode, this.pwNodes);
     },
@@ -190,7 +167,7 @@ export default {
       let branchNode = this.node;
       if (this.node.pw_nodes) this.updateNodeBranch(this.node.pw_nodes, 1);
 
-      let appendNode = { subject: '', contents: '', deep: (branchNode.deep + 1), branch: branchNode.branch };
+      let appendNode = {parent_node: this.node, subject: '', contents: '', deep: (branchNode.deep + 1), branch: branchNode.branch };
       branchNode.pw_nodes.push(appendNode);
 
       this.replaceNode(this.node, branchNode, this.pwNodes);
