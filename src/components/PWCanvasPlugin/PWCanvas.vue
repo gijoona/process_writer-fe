@@ -1,7 +1,7 @@
 <template>
   <v-container @contextmenu.prevent="showContextmenu">
     <svg id="canvas" :viewBox="svgViewBox" xmlns="http://www.w3.org/2000/svg" overflow="auto">
-      <path v-for="pathDirection in pathDirections" :key="pathDirection" name="paths"
+      <path v-for="(pathDirection, idx) in pathDirections" :key="'path' + idx" name="paths"
         :d="pathDirection"
         style="stroke: #6666ff; stroke-width: 1px; fill: none;"
       />
@@ -119,11 +119,9 @@ export default {
       });
     },
     drawPath() {
-      // TODO :: firefox에서 PATH가 안그려지는 증상 발생
-      document.getElementsByName('paths').forEach((node, idx) => {
-        node.remove();
-      });
+       this.clearPath();
 
+      // TODO :: firefox에서 PATH가 안그려지는 증상 발생
       this.nodes.forEach((node, idx) => {
         if (node.parent_node) {
           let pm = document.getElementById('nodeMarker_' + node.parent_node.branch + '_' + node.parent_node.deep);
@@ -131,6 +129,10 @@ export default {
           this.pathDirections.push('M' + pm.getAttribute('refX') + ',' + pm.getAttribute('refY') + ' ' + 'L' + cm.getAttribute('refX') + ',' + cm.getAttribute('refY'));
         }
       });
+    },
+    clearPath() {
+      let canvas = document.getElementById("canvas");
+      canvas.querySelectorAll('path').forEach(n => n.remove());
     },
     showContents(data) {
       this.findParentNode(data);
@@ -164,6 +166,7 @@ export default {
       this.replaceNode(this.node, plusNode, this.pwNodes);
     },
     nodeBranch() {
+      // TODO :: branch 생성 시 역순으로 데이터가 들어가지 않도록 기능 개선 필요
       let branchNode = this.node;
       if (this.node.pw_nodes) this.updateNodeBranch(this.node.pw_nodes, 1);
 
