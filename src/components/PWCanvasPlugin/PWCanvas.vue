@@ -121,7 +121,6 @@ export default {
     drawPath() {
        this.clearPath();
 
-      // TODO :: firefox에서 PATH가 안그려지는 증상 발생
       this.nodes.forEach((node, idx) => {
         if (node.parent_node) {
           let pm = document.getElementById('nodeMarker_' + node.parent_node.branch + '_' + node.parent_node.deep);
@@ -166,11 +165,11 @@ export default {
       this.replaceNode(this.node, plusNode, this.pwNodes);
     },
     nodeBranch() {
-      // TODO :: branch 생성 시 역순으로 데이터가 들어가지 않도록 기능 개선 필요
       let branchNode = this.node;
-      if (this.node.pw_nodes) this.updateNodeBranch(this.node.pw_nodes, 1);
+      let branchNum = branchNode.branch;
+      if (this.node.pw_nodes) branchNum += this.node.pw_nodes.length;
 
-      let appendNode = {parent_node: this.node, subject: '', contents: '', deep: (branchNode.deep + 1), branch: branchNode.branch };
+      let appendNode = {parent_node: this.node, subject: '', contents: '', deep: (branchNode.deep + 1), branch: branchNum };
       branchNode.pw_nodes.push(appendNode);
 
       this.replaceNode(this.node, branchNode, this.pwNodes);
@@ -188,9 +187,20 @@ export default {
         // STEP1
         if(confirm("하위노드까지 전부 삭제하시겠습니까?")) {
           // STEP1-1
-          delete this.parentNode.pw_nodes[deleteNodeIdx];
+          let tempNodes = [];
+          this.parentNode.pw_nodes.forEach((node, idx) => {
+            if (idx !== deleteNodeIdx) {
+              if (idx > deleteNodeIdx) {
+                node.branch -= 1;
+                if (node.pw_nodes) this.updateNodeBranch(node.pw_nodes, -1);
+              }
+              tempNodes.push(node);
+            }
+          });
+          this.parentNode.pw_nodes = tempNodes;
         } else {
           // STEP1-2
+          let parent = this.parentNode.pw_nodes[deleteNodeIdx].parent_node;
           let childNodes = this.parentNode.pw_nodes[deleteNodeIdx].pw_nodes;
           this.updateNodeDeep(childNodes, -1);
           if (childNodes.length === 1) {
@@ -203,15 +213,13 @@ export default {
             this.parentNode.pw_nodes.forEach((node, idx) => {
               node.branch = node.branch + plusNum;
               if (idx === deleteNodeIdx) {
+                plusNum = childNodes.length - 1;
                 childNodes.forEach((cNode, idx) => {
-                  console.log('del node child', node.branch, cNode.branch);
-                  cNode.branch = node.branch + plusNum;
-                  tmpNodes.unshift(cNode);
-                  plusNum++;
+                  cNode.parent_node = parent;
+                  tmpNodes.push(cNode);
                 });
               } else {
-                console.log('del node same', node.branch);
-                tmpNodes.unshift(node);
+                tmpNodes.push(node);
               }
             });
 
@@ -221,6 +229,17 @@ export default {
       } else {
         // STEP2
         delete this.parentNode.pw_nodes[deleteNodeIdx];
+        let tempNodes = [];
+        this.parentNode.pw_nodes.forEach((node, idx) => {
+          if (idx !== deleteNodeIdx) {
+            if (idx > deleteNodeIdx) {
+              node.branch -= 1;
+              if (node.pw_nodes) this.updateNodeBranch(node.pw_nodes, -1);
+            }
+            tempNodes.push(node);
+          }
+        });
+        this.parentNode.pw_nodes = tempNodes;
       }
       this.replaceNode(this.node, null, this.pwNodes);
     }
