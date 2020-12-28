@@ -8,8 +8,6 @@
       <PWNode
         v-for="(node, idx) in nodes"
         :node="node"
-        :deep="node.deep"
-        :branch="node.branch"
         :key="idx"
         @onClick="showContents"
         @onContextmenu="nodeContextmenu"
@@ -58,7 +56,7 @@ export default {
     svgViewBox() {
       let width = 140 * (this.maxBranch + 1) > 500 ? 140 * (this.maxBranch + 1) : 500;
       let height = 120 * (this.maxDeep + 1) > 400 ? 120 * (this.maxDeep + 1) : 400;
-      return "0 0 " + width + " " + height;
+      return `0 0 ${width} ${height}`;
     }
   },
   methods: {
@@ -99,23 +97,32 @@ export default {
           }
           return false;
         }
-        this.changeNode(oNode, rNode, (node.pw_nodes || []));
+        this.changeNode(oNode, rNode, (node.pw_nodes ?? []));
       });
     },
     replaceNode(oNode, rNode, nodes) {
       this.changeNode(oNode, rNode, nodes);
       this.initCanvas(nodes);
     },
-    updateNodeDeep(nodes, num) {
+    updateNodeDeep(nodes, num = 1) {
       nodes.forEach((node, idx) => {
         node.deep = node.deep + num;
         if (node.pw_nodes) this.updateNodeDeep(node.pw_nodes, num);
       });
     },
-    updateNodeBranch(nodes, num) {
+    updateNodeBranch(nodes, num = 1) {
       nodes.forEach((node, idx) => {
         node.branch = node.branch + num;
         if (node.pw_nodes) this.updateNodeBranch(node.pw_nodes, num);
+      });
+    },
+    shiftNodeBranch(nodes, currBranch) {
+      console.log(currBranch);
+      nodes.forEach((node, idx) => {
+        if (node.branch >= currBranch) {
+          node.branch++;
+          if (node.pw_nodes) this.shiftNodeBranch(node.pw_nodes, currBranch);
+        }
       });
     },
     drawPath() {
@@ -123,9 +130,9 @@ export default {
 
       this.nodes.forEach((node, idx) => {
         if (node.parent_node) {
-          let pm = document.getElementById('nodeMarker_' + node.parent_node.branch + '_' + node.parent_node.deep);
-          let cm = document.getElementById('nodeMarker_' + node.branch + '_' + node.deep);
-          this.pathDirections.push('M' + pm.getAttribute('refX') + ',' + pm.getAttribute('refY') + ' ' + 'L' + cm.getAttribute('refX') + ',' + cm.getAttribute('refY'));
+          let pm = document.getElementById(`nodeMarker_${node.parent_node.branch}_${node.parent_node.deep}`);
+          let cm = document.getElementById(`nodeMarker_${node.branch}_${node.deep}`);
+          this.pathDirections.push(`M${pm.getAttribute('refX')},${pm.getAttribute('refY')} L${cm.getAttribute('refX')},${cm.getAttribute('refY')}`);
         }
       });
     },
@@ -157,10 +164,12 @@ export default {
       if (cmd === "delete") this.nodeDelete();
     },
     nodePlus() {
+      // TODO :: 부모 노드에서 자식 Branch 생성 후 다시 부모 노드에서 추가를 하면 자식 Branch가 부모의 부모 노드를 바라보는 증상. 개선 필요.
       let plusNode = this.node;
-      if (this.node.pw_nodes) this.updateNodeDeep(this.node.pw_nodes, 1);
-
-      let childNodes = [Object.assign({}, plusNode, { parent_node: this.node, subject: '', contents: '', deep: (plusNode.deep + 1)})];
+      let childNodes = [{...plusNode, ...{ parent_node: this.node, subject: '', contents: '', deep: (plusNode.deep + 1)}}];
+      if (plusNode.pw_nodes) {
+        this.updateNodeDeep(plusNode.pw_nodes);
+      }
       plusNode.pw_nodes = childNodes;
       this.replaceNode(this.node, plusNode, this.pwNodes);
     },
@@ -169,7 +178,9 @@ export default {
       let branchNum = branchNode.branch;
       if (this.node.pw_nodes) branchNum += this.node.pw_nodes.length;
 
-      let appendNode = {parent_node: this.node, subject: '', contents: '', deep: (branchNode.deep + 1), branch: branchNum };
+      this.shiftNodeBranch(this.pwNodes, branchNum);
+
+      let appendNode = { parent_node: this.node, subject: '', contents: '', deep: (branchNode.deep + 1), branch: branchNum };
       branchNode.pw_nodes.push(appendNode);
 
       this.replaceNode(this.node, branchNode, this.pwNodes);

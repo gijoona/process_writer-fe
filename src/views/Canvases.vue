@@ -13,7 +13,7 @@ export default {
   methods: {
     init() {
       this.pwNodes = [
-        {"subject":"1","contents":"1","deep":0,"branch":0}
+        { "subject": "1", "contents": "1", "deep": 0, "branch": 0 }
       ];
     },
   },
